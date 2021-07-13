@@ -16,11 +16,11 @@ npm run dev
 
 Open your browser and access this URL's:
 
-- localhost:8080/create?queueName=tests
-- localhost:8080/create?queueName=tests&fifo=true
-- localhost:8080/list
-- localhost:8080/list?prefix=tests
-- localhost:8080/url?prefix=tests
-- localhost:8080/url?prefix=tests&dlq=true
-- localhost:8080/send?queueName=tests
+- http://localhost:8080/create?queueName=tests
+- http://localhost:8080/create?queueName=tests&fifo=true
+- http://localhost:8080/list
+- http://localhost:8080/list?prefix=tests
+- http://localhost:8080/url?prefix=tests
+- http://localhost:8080/url?prefix=tests&dlq=true
+- http://localhost:8080/send?queueName=tests
 
