@@ -21,6 +21,6 @@ Open your browser and access this URL's:
 - http://localhost:8080/list
 - http://localhost:8080/list?prefix=tests
 - http://localhost:8080/url?prefix=tests
-- http://localhost:8080/url?prefix=tests&dlq=true
-- http://localhost:8080/send?queueName=tests
-
+- http://localhost:8080/url?prefix=tests-dlq.fifo
+- http://localhost:8080/send?queueName=tests.fifo
+- http://localhost:8080/send?queueName=tests-dlq.fifo

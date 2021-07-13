@@ -117,17 +117,13 @@ module.exports = {
   /**
    * Retorna a URL da fila - necessário no send
    */
-  url: async function (prefix, dlq=false) {
+  url: async function (fullQueueName) {
     try {
-      const result = await this.getClient().listQueues( { QueueNamePrefix: prefix } ).promise();
+      const result = await this.getClient().listQueues( { QueueNamePrefix: fullQueueName } ).promise();
       
       if (!result.QueueUrls) return "";
 
-      if (dlq) {
-        return result.QueueUrls.filter(u => u.includes("dlq"))[0];
-      } else {
-        return result.QueueUrls.filter(u => !u.includes("dlq"))[0];
-      }
+      return result.QueueUrls.filter(u => u.includes(fullQueueName))[0];
     } catch (e) {
       console.log(e);
       throw new Error("Não foi possível resgatar a url da fila do SQS" + JSON.stringify(e));
