@@ -147,7 +147,7 @@ module.exports = {
       return await this.getClient().sendMessage(params).promise();
     } catch (e) {
       console.log(e);
-      throw new Error("Não listar as filas do SQS" + JSON.stringify(e));
+      throw new Error("Não foi possível enviar para a fila do SQS" + JSON.stringify(e));
     }
   }
 };

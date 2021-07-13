@@ -24,9 +24,10 @@ app.use(logRequest)
 app.get('/create', async function (req, res) {
 
   try {
+    if (!req.query.queueName) throw "Você deve informar o query param queueName"
     const queueResult = await awsSQS.create({
-      queueName: 'test',
-      isFifo: true,
+      queueName: req.query.queueName,
+      isFifo: (req.query.fifo && JSON.parse(req.query.fifo)),
       tag: 'c6-dev',
       retentionDays: 4
     })
