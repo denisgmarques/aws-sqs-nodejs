@@ -1,0 +1,36 @@
+{
+  "name": "aws-sqs-producer",
+  "version": "1.0.0",
+  "description": "Amazon SQS Producer Test",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon --inspect=0.0.0.0 src/",
+    "lint": "standard --fix --ext .js src"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denisgmarques/aws-sqs-producer.git"
+  },
+  "keywords": [
+    "node",
+    "sqs",
+    "aws"
+  ],
+  "author": "Denis Giovan Marques",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/denisgmarques/aws-sqs-producer/issues"
+  },
+  "homepage": "https://github.com/denisgmarques/aws-sqs-producer#readme",
+  "dependencies": {
+    "aws-sdk": "~2.939.0",
+    "express": "~4.12.4",
+    "uuid": "^8.3.2",
+    "winston": "^3.3.3"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.9",
+    "standard": "^16.0.3"
+  }
+}
