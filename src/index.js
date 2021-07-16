@@ -108,7 +108,7 @@ app.get('/url', async function (req, res) {
  *
  *  Exemplo:
  *
- *    /url?queueName=MinhaFila
+ *    /send?queueName=MinhaFila
  *
  */
 app.get('/send', async function (req, res) {
@@ -154,7 +154,7 @@ let consumerQueueUrl;
 const handleMessage = async (message) => {
   console.log(message)
 
-  // Params to delete
+  // Parâmetros do delete
   const params = {
     QueueUrl: consumerQueueUrl,
     ReceiptHandle: message.ReceiptHandle
