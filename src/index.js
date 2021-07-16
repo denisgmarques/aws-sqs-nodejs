@@ -47,7 +47,7 @@ app.get('/create', async function (req, res) {
     res.send(queueResult)
   } catch (e) {
     console.log(e)
-    res.status(500).send(e)
+    res.status(500).send({'error': e.message})
   }
 })
 
@@ -69,7 +69,7 @@ app.get('/list', async function (req, res) {
     res.send(result)
   } catch (e) {
     console.log(e)
-    res.status(500).send(e)
+    res.status(500).send({'error': e.message})
   }
 })
 
@@ -95,7 +95,7 @@ app.get('/url', async function (req, res) {
     res.send(result)
   } catch (e) {
     console.log(e)
-    res.status(500).send(e)
+    res.status(500).send({'error': e.message})
   }
 })
 
@@ -143,7 +143,7 @@ app.get('/send', async function (req, res) {
     res.send(result)
   } catch (e) {
     console.log(e)
-    res.status(500).send(e)
+    res.status(500).send({'error': e.message})
   }
 })
 
