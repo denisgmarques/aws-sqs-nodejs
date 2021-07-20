@@ -1,5 +1,5 @@
-# Testes com o AWS SQS
-Amazon Simple Queue Service testes
+# Testes com o AWS SQS e SNS
+Amazon SQS / SNS testes
 
 ### Configure o ambiente com suas credenciais
 ```
@@ -16,6 +16,8 @@ npm run dev
 
 Abra o browser e teste com esses exemplos:
 
+#### SQS
+
 - http://localhost:8080/create?queueName=tests
 - http://localhost:8080/create?queueName=tests&fifo=true
 - http://localhost:8080/list
@@ -24,3 +26,19 @@ Abra o browser e teste com esses exemplos:
 - http://localhost:8080/url?queueName=tests-dlq.fifo
 - http://localhost:8080/send?queueName=MinhaFila.fifo
 - http://localhost:8080/send?queueName=MinhaFila-dlq.fifo
+
+#### SNS
+
+- http://localhost:8080/createTopic?topicName=MeuTopico
+
+### API VERSION
+```
+SQS: 2012-11-05
+
+SNS: 2010-03-31
+```
+### Documentação
+
+https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html
+
+https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SNS.html

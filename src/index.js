@@ -2,7 +2,7 @@ const { v4: uuidv4 } = require('uuid')
 const Winston = require('winston')
 const express = require('express')
 const app = express()
-const awsSQS = require('./awsSQS')
+const awsUtils = require('./awsUtils')
 
 // Configuração do Logger
 const consoleTransport = new Winston.transports.Console()
@@ -35,7 +35,7 @@ app.use(logRequest)
 app.get('/create', async function (req, res) {
   try {
     if (!req.query.queueName) throw new Error('Você deve informar o query param queueName')
-    const queueResult = await awsSQS.create({
+    const queueResult = await awsUtils.create({
       queueName: req.query.queueName,
       isFifo: (req.query.fifo && JSON.parse(req.query.fifo)),
       tag: 'minha-tag',
@@ -45,6 +45,35 @@ app.get('/create', async function (req, res) {
     logger.info(`createFifoQueue: ${JSON.stringify(queueResult)}`)
 
     res.send(queueResult)
+  } catch (e) {
+    console.log(e)
+    res.status(500).send({'error': e.message})
+  }
+}),
+
+/**
+ *  Endpoint para criar um tópico no SNS
+ *
+ *  Query Params:
+ *
+ *    prefix: String
+ *
+ *  Exemplo:
+ *
+ *    /list?prefix=Minha
+ *
+ */
+app.get('/createTopic', async function (req, res) {
+  try {
+    if (!req.query.topicName) throw new Error('Você deve informar o query param topicName')
+    const topicResult = await awsUtils.createTopic({
+      topicName: req.query.topicName,
+      tag: 'minha-tag'
+    })
+
+    logger.info(`createTopic: ${JSON.stringify(topicResult)}`)
+
+    res.send(topicResult)
   } catch (e) {
     console.log(e)
     res.status(500).send({'error': e.message})
@@ -65,7 +94,7 @@ app.get('/create', async function (req, res) {
  */
 app.get('/list', async function (req, res) {
   try {
-    const result = await awsSQS.list(req.query.prefix || '')
+    const result = await awsUtils.list(req.query.prefix || '')
     res.send(result)
   } catch (e) {
     console.log(e)
@@ -91,7 +120,7 @@ app.get('/url', async function (req, res) {
       throw new Error('Você deve informar o query param queueName')
     }
 
-    const result = await awsSQS.url(req.query.queueName)
+    const result = await awsUtils.url(req.query.queueName)
     res.send(result)
   } catch (e) {
     console.log(e)
@@ -117,7 +146,7 @@ app.get('/send', async function (req, res) {
       throw new Error('Você deve informar o query param queueName')
     }
 
-    const queueUrl = await awsSQS.url(req.query.queueName || '', false)
+    const queueUrl = await awsUtils.url(req.query.queueName || '', false)
 
     if (!queueUrl) throw new Error(`Não foi possível encontrar a URL da fila ${req.query.queueName}`)
 
@@ -139,7 +168,7 @@ app.get('/send', async function (req, res) {
 
     logger.info(params)
 
-    const result = await awsSQS.send(params)
+    const result = await awsUtils.send(params)
     res.send(result)
   } catch (e) {
     console.log(e)
@@ -171,25 +200,25 @@ const handleMessage = async (message) => {
    * a mensagem será automaticamente enviada para a fila DLQ associada.
    *
    */
-  await awsSQS.delete(params)
+  await awsUtils.delete(params)
 }
 
 /**
  * Cria uma fila para o consumer
  */
- awsSQS.create({
+ awsUtils.create({
   queueName: 'MinhaFila',
   isFifo: true,
   tag: 'minha-tag',
   retentionDays: 4
 }).then(data => {
   const queueName = 'MinhaFila.fifo'
-  awsSQS.url(queueName).then(urlData => {
+  awsUtils.url(queueName).then(urlData => {
     consumerQueueUrl = urlData
     /**
      * Inicia o consumer após ter criado a fila
      */
-    awsSQS.createConsumer('MinhaFila.fifo', handleMessage).then(consumer => {
+    awsUtils.createConsumer('MinhaFila.fifo', handleMessage).then(consumer => {
       console.log('Starting consumer...')
       consumer.start()
     })
