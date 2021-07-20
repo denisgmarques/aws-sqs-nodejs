@@ -46,74 +46,87 @@ module.exports = {
     *        } param0
     * @returns { SNS createTopic response }
     */
-  createTopic: async function (params = { tag: '' }) {
+  createTopic: async function (params = { tag: '', isFifo: false }) {
     if (!params.topicName) throw new Error('Informe o parâmetro topicName')
-
-    try {
-      var params = {
-        Name: params.topicName,
-        // Attributes: {
-        //   '<attributeName>': 'STRING_VALUE',
-        //   /* '<attributeName>': ... */
-        // },
-        Tags: [
-          {
-            Key: params.tag,
-            Value: params.tag
-          }
-        ]
-      }
-
-      return await this.getSNSClient().createTopic(params).promise()
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível criar o tópico no SNS' + JSON.stringify(e))
+    console.log(`"${params.isFifo}"`)
+    var params = {
+      Name: params.topicName + ((params.isFifo) ? '.fifo' : ''),
+      Attributes : {
+        FifoTopic: `${params.isFifo}`
+      },
+      // Attributes: {
+      //   '<attributeName>': 'STRING_VALUE',
+      //   /* '<attributeName>': ... */
+      // },
+      Tags: [
+        {
+          Key: params.tag,
+          Value: params.tag
+        }
+      ]
     }
+
+    console.log(params)
+
+    const result = await this.getSNSClient().createTopic(params).promise()
+    console.log(`createTopic: ${JSON.stringify(result)}`)
+    return result
   },
 
-  subscribe: async function (params) {
+  listTopics: async function (params = {}) {
+    const result = await this.getSNSClient().listTopics(params).promise()
+    console.log(`listTopics: ${JSON.stringify(result)}`)
+    return result
+  },
+
+  subscribe: async function (topicName, queueName) {
+    if (!topicName || !queueName) throw new Error('Os parâmetros topicName e queueName são obrigatórios')
+
+    const topicArn = await this.topicArn(topicName)
+    const queueArn = await this.queueArn(queueName)
+
     var params = {
       Protocol: 'sqs',
-      TopicArn: 'STRING_VALUE', /* Pegar o arn do topic */
+      TopicArn: topicArn,
       // Attributes: {
       //   '<attributeName>': 'STRING_VALUE',
       // },
-      Endpoint: 'STRING_VALUE', /* Pegar o arn da queue */
-      ReturnSubscriptionArn: true || false
+      Endpoint: queueArn,
+      ReturnSubscriptionArn: true
     };
-    sns.subscribe(params, function(err, data) {
-      if (err) console.log(err, err.stack); // an error occurred
-      else     console.log(data);           // successful response
-    });
+    const result = await this.getSNSClient().subscribe(params).promise()
+    console.log(`subscribe: ${JSON.stringify(result)}`)
+    return result
   },
 
   queueArn: async function (queueName) {
-    try {
-      // Busca a URL da fila
-      const queueUrl = await this.url(queueName)
+    if (!queueName) throw new Error('Informe o parâmetro queueName')
 
-      // Busca o ARN da fila
-      params = {
-        QueueUrl: queueUrl,
-        AttributeNames: ['QueueArn']
-      }
+    // Busca a URL da fila
+    const queueUrl = await this.url(queueName)
 
-      const arnResult = await this.getSQSClient().getQueueAttributes(params).promise()
-      console.log(`queueArn: ${JSON.stringify(arnResult)}`)
-      return arnResult
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível buscar o Arn da fila no SQS' + JSON.stringify(e))
+    if (!queueUrl) throw new Error(`Queue ${queueName} não encontrada`)
+
+    // Busca o ARN da fila
+    let params = {
+      QueueUrl: queueUrl,
+      AttributeNames: ['QueueArn']
     }
+
+    const arnResult = await this.getSQSClient().getQueueAttributes(params).promise()
+    console.log(`Queue: ${queueName} - QueueArn: ${JSON.stringify(arnResult)}`)
+    return arnResult.Attributes.QueueArn
   },
 
-  topicArn: async function (params) {
-    try {
-      
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível buscar o Arn do tópico no SNS' + JSON.stringify(e))
-    }
+  topicArn: async function (topicName) {
+    if (!topicName) throw new Error('Informe o parâmetro topicName')
+
+    const result = await this.listTopics();
+    if (!result.Topics) throw new Error('Não existem tópicos no seu SNS')
+
+    const filteredResult = result.Topics.filter(i => /[^:]+$/.exec(i.TopicArn)[0] === topicName)[0]
+    if (!filteredResult) throw new Error(`Tópico ${topicName} não encontrado`)
+    return filteredResult.TopicArn
   },
 
   /**
@@ -133,91 +146,76 @@ module.exports = {
     const tag = params.tag
     const RETENTION_SECONDS = (params.retentionDays * 60 * 60 * 24).toString()
 
-    try {
-      // Cria a fila dql
-      let params = {
-        QueueName: queueName + '-dlq' + ((isFifo) ? '.fifo' : ''),
-        Attributes: {
-          DelaySeconds: '60',
-          MessageRetentionPeriod: RETENTION_SECONDS
-        },
-        tags: {
-          [tag]: tag
-        }
+    // Cria a fila dql
+    params = {
+      QueueName: queueName + '-dlq' + ((isFifo) ? '.fifo' : ''),
+      Attributes: {
+        DelaySeconds: '60',
+        MessageRetentionPeriod: RETENTION_SECONDS
+      },
+      tags: {
+        [tag]: tag
       }
-
-      let fifoAttr = {}
-
-      if (isFifo) {
-        fifoAttr = { Attributes: { FifoQueue: isFifo.toString() } }
-        params = { ...params, ...fifoAttr }
-      }
-
-      const dlqResult = await this.getSQSClient().createQueue(params).promise()
-      console.log(`createFifoDlqQueue: ${JSON.stringify(dlqResult)}`)
-
-      // Busca o ARN da fila dlq
-      params = {
-        QueueUrl: dlqResult.QueueUrl,
-        AttributeNames: ['QueueArn']
-      }
-
-      const arnResult = await this.getSQSClient().getQueueAttributes(params).promise()
-      console.log(`getDlqQueueAttributes: ${JSON.stringify(arnResult)}`)
-
-      // Cria a fila associando a dlq
-      params = {
-        QueueName: queueName + ((isFifo) ? '.fifo' : ''),
-        Attributes: {
-          DelaySeconds: '60',
-          MessageRetentionPeriod: RETENTION_SECONDS,
-          RedrivePolicy: JSON.stringify({ deadLetterTargetArn: arnResult.Attributes.QueueArn, maxReceiveCount: 10 })
-        },
-        tags: {
-          [tag]: tag
-        }
-      }
-
-      if (isFifo) {
-        params = { ...params, ...fifoAttr }
-      }
-
-      const queueResult = await this.getSQSClient().createQueue(params).promise()
-
-      console.log(`createFifoQueue: ${JSON.stringify(queueResult)}`)
-
-      return queueResult
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível criar a fila no SQS' + JSON.stringify(e))
     }
+
+    let fifoAttr = {}
+
+    if (isFifo) {
+      fifoAttr = { Attributes: { FifoQueue: isFifo.toString() } }
+      params = { ...params, ...fifoAttr }
+    }
+
+    const dlqResult = await this.getSQSClient().createQueue(params).promise()
+    console.log(`createFifoDlqQueue: ${JSON.stringify(dlqResult)}`)
+
+    // Busca o ARN da fila dlq
+    params = {
+      QueueUrl: dlqResult.QueueUrl,
+      AttributeNames: ['QueueArn']
+    }
+
+    const arnResult = await this.getSQSClient().getQueueAttributes(params).promise()
+    console.log(`getDlqQueueAttributes: ${JSON.stringify(arnResult)}`)
+
+    // Cria a fila associando a dlq
+    params = {
+      QueueName: queueName + ((isFifo) ? '.fifo' : ''),
+      Attributes: {
+        DelaySeconds: '60',
+        MessageRetentionPeriod: RETENTION_SECONDS,
+        RedrivePolicy: JSON.stringify({ deadLetterTargetArn: arnResult.Attributes.QueueArn, maxReceiveCount: 10 })
+      },
+      tags: {
+        [tag]: tag
+      }
+    }
+
+    if (isFifo) {
+      params = { ...params, ...fifoAttr }
+    }
+
+    const queueResult = await this.getSQSClient().createQueue(params).promise()
+
+    console.log(`createFifoQueue: ${JSON.stringify(queueResult)}`)
+
+    return queueResult
   },
 
   /**
    * Lista as filas existentes no SQS
    */
   list: async function (prefix) {
-    try {
-      return await this.getSQSClient().listQueues({ QueueNamePrefix: prefix }).promise()
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível listar as filas do SQS' + JSON.stringify(e))
-    }
+    return await this.getSQSClient().listQueues({ QueueNamePrefix: prefix }).promise()
   },
 
   /**
    * Retorna a URL da fila - necessário no send
    */
   url: async function (fullQueueName) {
-    try {
-      const result = await this.getSQSClient().listQueues({ QueueNamePrefix: fullQueueName }).promise()
-      if (!result.QueueUrls) return ''
+    const result = await this.getSQSClient().listQueues({ QueueNamePrefix: fullQueueName }).promise()
+    if (!result.QueueUrls) return ''
 
-      return result.QueueUrls.filter(u => /([^/]*)$/.exec(u)[0] === fullQueueName)[0]
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível resgatar a url da fila do SQS' + JSON.stringify(e))
-    }
+    return result.QueueUrls.filter(u => /([^/]*)$/.exec(u)[0] === fullQueueName)[0]
   },
 
   /**
@@ -227,12 +225,7 @@ module.exports = {
     if (!params.MessageBody) throw new Error('O parâmetro MessageBody é obrigatório')
     if (!params.QueueUrl) throw new Error('O parâmetro QueueUrl é obrigatório')
 
-    try {
-      return await this.getSQSClient().sendMessage(params).promise()
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível enviar para a fila do SQS' + JSON.stringify(e))
-    }
+    return await this.getSQSClient().sendMessage(params).promise()
   },
 
   /**
@@ -242,12 +235,7 @@ module.exports = {
     if (!params.QueueUrl) throw new Error('O parâmetro QueueUrl é obrigatório')
     if (!params.ReceiptHandle) throw new Error('O parâmetro ReceiptHandle é obrigatório')
 
-    try {
-      return await this.getSQSClient().deleteMessage(params).promise()
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível enviar para a fila do SQS' + JSON.stringify(e))
-    }
+    return await this.getSQSClient().deleteMessage(params).promise()
   },
 
   /**
@@ -258,31 +246,26 @@ module.exports = {
     if (!handleMessage || {}.toString.call(handleMessage) !== '[object AsyncFunction]') throw new Error('Você deve passar a função async handleMessage como parâmetro')
     if (!fullQueueName) throw new Error('Você deve passar o nome da fila como parâmetro')
 
-    try {
-      const queueUrl = await this.url(fullQueueName)
-      console.log(queueUrl)
-      const consumer = Consumer.create({
-        queueUrl: queueUrl,
-        handleMessage: handleMessage,
-        sqs: this.getSQSClient()
-      })
+    const queueUrl = await this.url(fullQueueName)
+    console.log(queueUrl)
+    const consumer = Consumer.create({
+      queueUrl: queueUrl,
+      handleMessage: handleMessage,
+      sqs: this.getSQSClient()
+    })
 
-      consumer.on('error', (err) => {
-        console.error(err.message)
-      })
+    consumer.on('error', (err) => {
+      console.error(err.message)
+    })
 
-      consumer.on('processing_error', (err) => {
-        console.error(err.message)
-      })
+    consumer.on('processing_error', (err) => {
+      console.error(err.message)
+    })
 
-      consumer.on('timeout_error', (err) => {
-        console.error(err.message)
-      })
+    consumer.on('timeout_error', (err) => {
+      console.error(err.message)
+    })
 
-      return consumer
-    } catch (e) {
-      console.log(e)
-      throw new Error('Não foi possível criar o consumer da fila do SQS' + JSON.stringify(e))
-    }
+    return consumer
   }
 }

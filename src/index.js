@@ -56,11 +56,12 @@ app.get('/create', async function (req, res) {
  *
  *  Query Params:
  *
- *    prefix: String
+ *    topicName: String
+ *    fifo: Boolean
  *
  *  Exemplo:
  *
- *    /list?prefix=Minha
+ *    /createTopic?topicName=MeuTopico&fifo=true
  *
  */
 app.get('/createTopic', async function (req, res) {
@@ -68,6 +69,7 @@ app.get('/createTopic', async function (req, res) {
     if (!req.query.topicName) throw new Error('Você deve informar o query param topicName')
     const topicResult = await awsUtils.createTopic({
       topicName: req.query.topicName,
+      isFifo: (req.query.fifo && JSON.parse(req.query.fifo)),
       tag: 'minha-tag'
     })
 
@@ -95,6 +97,89 @@ app.get('/createTopic', async function (req, res) {
 app.get('/list', async function (req, res) {
   try {
     const result = await awsUtils.list(req.query.prefix || '')
+    res.send(result)
+  } catch (e) {
+    console.log(e)
+    res.status(500).send({'error': e.message})
+  }
+})
+
+/**
+ *  Endpoint para listar os tópicos
+ *
+ *    /listTopics
+ *
+ */
+ app.get('/listTopics', async function (req, res) {
+  try {
+    const result = await awsUtils.listTopics()
+    res.send(result)
+  } catch (e) {
+    console.log(e)
+    res.status(500).send({'error': e.message})
+  }
+})
+
+/**
+ *  Endpoint para listar o Arn de uma fila
+ *
+ *  Query Params:
+ *
+ *    queueName: String
+ *
+ *  Exemplo:
+ *
+ *    /queueArn?queueName=MinhaFila.fifo
+ *
+ */
+ app.get('/queueArn', async function (req, res) {
+  try {
+    const result = await awsUtils.queueArn(req.query.queueName || '')
+    res.send(result)
+  } catch (e) {
+    console.log(e)
+    res.status(500).send({'error': e.message})
+  }
+})
+
+/**
+ *  Endpoint para listar o Arn de um tópico
+ *
+ *  Query Params:
+ *
+ *    topicName: String
+ *
+ *  Exemplo:
+ *
+ *    /topicArn?topicName=exchange2
+ *
+ */
+ app.get('/topicArn', async function (req, res) {
+  try {
+    const result = await awsUtils.topicArn(req.query.topicName || '')
+    res.send(result)
+  } catch (e) {
+    console.log(e)
+    res.status(500).send({'error': e.message})
+  }
+})
+
+/**
+ *  Subscribe uma fila SQS num tópico do SNS
+ *
+ *  Query Params:
+ *
+ *    topicName: String
+ *    queueName: String
+ *
+ *  Exemplo:
+ *
+ *    /subscribe?topicName=exchange2&queueName=tests
+ *
+ */
+ app.get('/subscribe', async function (req, res) {
+  try {
+    const result = await awsUtils.subscribe(req.query.topicName, req.query.queueName)
     res.send(result)
   } catch (e) {
     console.log(e)
